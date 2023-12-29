@@ -1,17 +1,17 @@
 {
-  "name": "streamerjs",
-  "version": "1.0.0",
+  "name": "@streamerjs/streamerjs",
+  "version": "1.0.1",
   "description": "Video stream layout manager",
   "main": "./cli.js",
   "scripts": {
     "run": "node cli.js",
-    "npm-publish": "npm publish --access public"
+    "npm-publish": "npm publish --access=public"
   },
   "author": "Sergey Chernyshev",
   "license": "BSD-3-Clause",
   "type": "module",
   "bin": {
-    "streamerjs": "./cli.js"
+    "@streamerjs/streamerjs": "./cli.js"
   },
   "dependencies": {
     "ejs": "^3.1.9",

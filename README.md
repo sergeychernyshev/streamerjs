@@ -4,6 +4,16 @@ Video stream layout manager for OBS Studio and other streaming application.
 
 We use web technologies to manage the layout of the video stream and control it remotely using a web browser.
 
+## Running the application
+
+To run Streamer JS in your project, create a `/scenes/` sub-folder and put your scenes HTML files there.
+
+Then just run the following command:
+
+```bash
+npx stremerjs --package=@stremerjs/stremerjs
+```
+
 ## Configuration
 
 To configure the application, you need to create a file named `config.json` in the root of the project. This file can contain the following information:
