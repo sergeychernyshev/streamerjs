@@ -84,13 +84,11 @@ if (config.control) {
   }
 
   const controlPath = url.fileURLToPath(import.meta.resolve("./control/"));
-  console.log("controlPath", controlPath);
   app.use("/control/", express.static(controlPath));
 
   const pouchDBLibPath = url.fileURLToPath(
     import.meta.resolve("Pouchdb/dist/")
   );
-  console.log("pouchDBLibPath", pouchDBLibPath);
   app.use("/pouchdb/", express.static(pouchDBLibPath));
 
   const pouchApp = ExpressPutchDBFactory(StreamerPouchDB, {
