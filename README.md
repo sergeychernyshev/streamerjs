@@ -11,7 +11,7 @@ To run Streamer JS in your project, create a `/scenes/` sub-folder and put your 
 Then just run the following command:
 
 ```bash
-npx stremerjs --package=@stremerjs/stremerjs
+npx @streamerjs/streamerjs
 ```
 
 ## Configuration
