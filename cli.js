@@ -62,26 +62,15 @@ if (config.control) {
   if (!fs.existsSync(config.dbpath)) {
     try {
       fs.mkdirSync(config.dbpath, { recursive: true });
-      console.log(`PuchDB database folder created at: ${config.dbpath}`);
+      console.log(`PouchDB database folder created at: ${config.dbpath}`);
     } catch (error) {
-      console.error(`Error creating PuchDB database folder: ${error.message}`);
+      console.error(`Error creating PouchDB database folder: ${error.message}`);
     }
   }
 
   const StreamerPouchDB = PouchDB.defaults({ prefix: config.dbpath + "/" });
 
-  const streamerStore = new StreamerPouchDB("streamer");
-
-  streamerStore
-    .changes({
-      since: "now",
-      live: true,
-    })
-    .on("change", onDataChange);
-
-  function onDataChange(change) {
-    console.log("Data change: ", change);
-  }
+  new StreamerPouchDB("streamer");
 
   const controlPath = url.fileURLToPath(import.meta.resolve("./control/"));
   app.use("/control/", express.static(controlPath));
