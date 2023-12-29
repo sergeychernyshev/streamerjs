@@ -38,18 +38,6 @@ try {
 
 const insecurePort = config.port || process.env.PORT;
 
-// Check if the db folder exists, create it if it doesn't
-if (!fs.existsSync(config.dbpath)) {
-  try {
-    fs.mkdirSync(config.dbpath, { recursive: true });
-    console.log(`PuchDB database folder created at: ${config.dbpath}`);
-  } catch (error) {
-    console.error(`Error creating PuchDB database folder: ${error.message}`);
-  }
-}
-
-const StreamerPouchDB = PouchDB.defaults({ prefix: config.dbpath + "/" });
-
 const app = express();
 
 // project resources
@@ -70,6 +58,18 @@ app.get("/", (req, res) => {
 });
 
 if (config.control) {
+  // Check if the db folder exists, create it if it doesn't
+  if (!fs.existsSync(config.dbpath)) {
+    try {
+      fs.mkdirSync(config.dbpath, { recursive: true });
+      console.log(`PuchDB database folder created at: ${config.dbpath}`);
+    } catch (error) {
+      console.error(`Error creating PuchDB database folder: ${error.message}`);
+    }
+  }
+
+  const StreamerPouchDB = PouchDB.defaults({ prefix: config.dbpath + "/" });
+
   const streamerStore = new StreamerPouchDB("streamer");
 
   streamerStore
@@ -84,11 +84,11 @@ if (config.control) {
   }
 
   const controlPath = url.fileURLToPath(import.meta.resolve("./control/"));
+  console.log("controlPath", controlPath);
   app.use("/control/", express.static(controlPath));
 
-  const pouchDBLibPath = url.fileURLToPath(
-    import.meta.resolve("./node_modules/pouchdb/dist/")
-  );
+  const pouchDBLibPath = url.fileURLToPath(PouchDB.meta.resolve("./dist/"));
+  console.log("pouchDBLibPath", pouchDBLibPath);
   app.use("/pouchdb/", express.static(pouchDBLibPath));
 
   const pouchApp = ExpressPutchDBFactory(StreamerPouchDB, {
