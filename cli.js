@@ -40,24 +40,26 @@ const insecurePort = config.port || process.env.PORT;
 
 const app = express();
 
-// project resources
+// Scenes in user's project
 app.use(
-  "/scenes",
+  "/scenes/",
   express.static("scenes"),
   serveIndex("scenes", { icons: true })
 );
+
+// Assets in user's project
 app.use("/assets/", express.static("assets"));
 
 // streamer resources
-const templates = url.fileURLToPath(import.meta.resolve("./public/"));
+const templates = url.fileURLToPath(import.meta.resolve("./templates/"));
 app.set("view engine", "ejs").set("views", templates);
 
-app.get("/", (req, res) => {
-  app.engine("ejs", ejs.renderFile);
-  res.render("index", { control: config.control });
-});
+let enableControlPanel = false;
 
-if (config.control) {
+// check if control folder exists to indicate that the user wants to create the control panel(s)
+if (fs.existsSync("control")) {
+  enableControlPanel = true;
+
   // Check if the db folder exists, create it if it doesn't
   if (!fs.existsSync(config.dbpath)) {
     try {
@@ -72,19 +74,24 @@ if (config.control) {
 
   new StreamerPouchDB("streamer");
 
-  const controlPath = url.fileURLToPath(import.meta.resolve("./control/"));
-  app.use("/control/", express.static(controlPath));
+  // Control panel resources in user's project
+  app.use("/control/", express.static("control"));
 
+  /**
+   * Server paths
+   */
   const pouchDBLibPath = url.fileURLToPath(
     import.meta.resolve("Pouchdb/dist/")
   );
-  app.use("/pouchdb/", express.static(pouchDBLibPath));
+  // PouchDB client library
+  app.use("/_resources/pouchdb/", express.static(pouchDBLibPath));
 
   const pouchApp = ExpressPutchDBFactory(StreamerPouchDB, {
     logPath: config.dbpath + "/log.txt",
     configPath: config.dbpath + "/config.json",
   });
-  app.use("/db", pouchApp);
+  // PouchDB server
+  app.use("/_db", pouchApp);
 }
 
 // Get network interfaces
@@ -105,6 +112,18 @@ Object.keys(networkInterfaces).forEach((interfaceName) => {
   });
 });
 
+// Server index linking to other parts of the server
+app.get("/", (req, res) => {
+  app.engine("ejs", ejs.renderFile);
+  res.render("index", { control: enableControlPanel });
+});
+
+// Assets in user's project
+app.use(
+  "/_resources/",
+  express.static(url.fileURLToPath(import.meta.resolve("./resources/")))
+);
+
 // HTTP server
 app.listen(insecurePort);
 
@@ -113,7 +132,7 @@ ips.forEach((ip) => {
   console.log(`http://${ip}:${insecurePort}`);
 });
 
-if (config.control) {
+if (enableControlPanel) {
   console.log("\nControl your stream by opening:");
   ips.forEach((ip) => {
     console.log(`http://${ip}:${insecurePort}/control/`);
