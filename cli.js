@@ -13,6 +13,16 @@ import ExpressPutchDBFactory from "express-pouchdb";
 
 let config;
 
+// Read the content of package.json
+const packageJsonPath = url.fileURLToPath(
+  import.meta.resolve("./package.json")
+);
+const packageJsonContent = fs.readFileSync(packageJsonPath, "utf8");
+const packageJson = JSON.parse(packageJsonContent);
+
+// Access the version
+const cliVersion = packageJson.version;
+
 // to override the default config, create a config.json file
 // in the root folder of your project
 const default_config = {
@@ -127,7 +137,7 @@ app.use(
 // HTTP server
 app.listen(insecurePort);
 
-console.log("StreamerJS server listening on:");
+console.log(`StreamerJS (v${cliVersion}) server listening on:`);
 ips.forEach((ip) => {
   console.log(`http://${ip}:${insecurePort}`);
 });

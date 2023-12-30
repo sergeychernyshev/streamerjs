@@ -1,11 +1,13 @@
 {
   "name": "@streamerjs/streamerjs",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Video stream layout manager",
   "main": "./cli.js",
   "scripts": {
     "run": "node cli.js",
-    "npm-publish": "npm publish --access=public"
+    "npm-publish": "npm publish --access=public",
+    "dev": "npm link",
+    "prod": "npm -g unlink @streamerjs/streamerjs"
   },
   "author": "Sergey Chernyshev",
   "license": "BSD-3-Clause",
