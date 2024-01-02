@@ -1,4 +1,4 @@
-# Stremer JS
+# Streamer JS
 
 Video stream layout manager for OBS Studio and other streaming application.
 
