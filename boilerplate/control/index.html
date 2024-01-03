@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sample Control Panel</title>
+  </head>
+  <body>
+    <h1>Sample Control Panel</h1>
+    <h2>Counter: <span id="counter"></span></h2>
+    <button id="increment">Increment</button>
+
+    <h2>Manage Database</h2>
+    <button id="delete">Delete Scene Data</button>
+    <button id="init">Initialize Scene Data</button>
+
+    <script src="/_resources/pouchdb/pouchdb.min.js"></script>
+    <script src="/_resources/db.js"></script>
+    <script>
+      db.changes({
+        since: "now",
+        live: true,
+        include_docs: true,
+      }).on("change", updateUI);
+
+      function updateUI() {
+        db.get("scene1")
+          .then(function (result) {
+            document.getElementById("counter").textContent = result.counter;
+          })
+          .catch(function (err) {
+            document.getElementById("counter").textContent = "";
+          });
+      }
+
+      function init() {
+        db.get("scene1")
+          .then(function (result) {
+            // if scene is known, check if it has a counter
+            if (!result.counter) {
+              db.put({
+                ...result,
+                counter: 0,
+              });
+            }
+          })
+          .catch(function (err) {
+            // if scene is unknown, create it
+            db.put({
+              _id: "scene1",
+              counter: 0,
+            });
+          });
+      }
+
+      init();
+
+      updateUI();
+
+      document.getElementById("increment").addEventListener("click", () => {
+        db.get("scene1").then(function (result) {
+          result.counter++;
+          db.put(result);
+        });
+      });
+
+      document.getElementById("delete").addEventListener("click", () => {
+        db.get("scene1")
+          .then(function (doc) {
+            doc._deleted = true;
+            return db.put(doc);
+          })
+          .then(function (result) {
+            console.log(result);
+          })
+          .then(updateUI);
+      });
+
+      document.getElementById("init").addEventListener("click", init);
+    </script>
+  </body>
+</html>
