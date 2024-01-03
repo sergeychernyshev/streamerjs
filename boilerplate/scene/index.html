@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sample Scene</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #counter {
+        font-size: 10rem;
+        font-family: sans-serif;
+        font-weight: bold;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <span id="counter">0</span>
+
+    <script src="/_resources/pouchdb/pouchdb.min.js"></script>
+    <script src="/_resources/db.js"></script>
+    <script>
+      db.changes({
+        since: "now",
+        live: true,
+      }).on("change", updateUI);
+
+      function updateUI() {
+        db.get("scene1")
+          .then(function (result) {
+            document.getElementById("counter").textContent = result.counter;
+          })
+          .catch(function (err) {
+            console.log("error loading scene1", err);
+          });
+      }
+
+      updateUI();
+    </script>
+  </body>
+</html>
