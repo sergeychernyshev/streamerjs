@@ -1,6 +1,6 @@
 {
   "name": "@streamerjs/streamerjs",
-  "version": "1.0.7",
+  "version": "1.0.7-dev-websocket",
   "description": "Video stream layout manager",
   "main": "./cli.js",
   "scripts": {
