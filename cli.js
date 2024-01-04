@@ -32,6 +32,7 @@ const cliVersion = packageJson.version;
 const config = {
   port: 2525,
   dbpath: "db",
+  debug: false,
   obs: {
     host: "localhost",
     port: 4455,
@@ -55,6 +56,14 @@ try {
   config.obs = { ...config.obs, ...configOverride.obs };
 } catch (fileError) {
   // just use default config when config.json is not found
+}
+
+// Debugging helper
+const debug = { log: console.log };
+if (config.debug) {
+  debug.log = console.log;
+} else {
+  debug.log = () => {};
 }
 
 // CLI arguments
@@ -186,7 +195,7 @@ function start() {
 
     const StreamerPouchDB = PouchDB.defaults({ prefix: config.dbpath + "/" });
 
-    new StreamerPouchDB("streamer");
+    const db = new StreamerPouchDB("streamer");
 
     // Control panel resources in user's project
     app.use("/control/", express.static("control"));
@@ -209,6 +218,8 @@ function start() {
     });
     // PouchDB server
     app.use("/_db", pouchApp);
+
+    obs(db);
   }
 
   // Get network interfaces
@@ -257,46 +268,117 @@ function start() {
   }
 }
 
-// Connect to OBS
-console.log(`\nConnecting to OBS on ${config.obs?.host}:${config.obs?.port}`);
+async function obs(db) {
+  // Connect to OBS
+  debug.log(`\nConnecting to OBS on ${config.obs?.host}:${config.obs?.port}`);
 
-const obs = new OBSWebSocket();
+  const obs = new OBSWebSocket();
 
-// Declare some events to listen for.
-obs.on("ConnectionOpened", () => {
-  console.log("OBS Connection Opened");
-});
-
-obs.on("Identified", () => {
-  console.log("OBS Identified, good to go!");
-
-  // Send some requests.
-  obs.call("GetSceneList").then((data) => {
-    console.log("Scenes:", data);
+  // Declare some events to listen for.
+  obs.on("ConnectionOpened", () => {
+    debug.log("OBS Connection Opened");
   });
-});
 
-obs.on("SwitchScenes", (data) => {
-  console.log("SwitchScenes", data);
-});
+  obs.on("Identified", () => {
+    debug.log("OBS Identified, good to go!");
+  });
 
-obs.on("CurrentSceneChanged", (data) => {
-  console.log("CurrentSceneChanged", data);
-});
+  try {
+    const OBSInfo = await obs.connect(
+      `ws://${config.obs?.host}:${config.obs?.port}`,
+      config.obs?.password,
+      {
+        eventSubscriptions:
+          EventSubscription.General | EventSubscription.Scenes,
+      }
+    );
 
-obs
-  .connect(
-    `ws://${config.obs?.host}:${config.obs?.port}`,
-    config.obs?.password,
-    {
-      eventSubscriptions: EventSubscription.All,
-    }
-  )
-  .then(
-    (info) => {
-      console.log("Connected to OBS and identified", info);
-    },
-    (error) => {
-      console.error("Error Connecting to OBS", error);
-    }
-  );
+    debug.log("Connected to OBS and identified", OBSInfo);
+
+    updateOBSCurrentSceneAndItems(db, obs);
+
+    // OBS commands queue
+    db.get("obs_commands")
+      .then((doc) => {
+        doc.queue = [];
+
+        // empty the queue on startup
+        db.put(doc);
+      })
+      .catch((error) => {
+        // no queue on startup
+        db.put({
+          _id: "obs_commands",
+          queue: [],
+        });
+      });
+
+    // monitor DB changes
+    db.changes({
+      since: "now",
+      live: true,
+      include_docs: true,
+    }).on("change", (change) => {
+      // debug.log("DB change", change);
+
+      if (change.id == "obs_commands") {
+        const commands = change.doc.queue;
+        // debug.log("Commands:", commands);
+
+        commands.forEach(async (command) => {
+          try {
+            debug.log("Calling OBS: ", command);
+            const result = await obs.call(
+              command.requestType,
+              command.requestData || {}
+            );
+            debug.log(
+              "[OBS Call Result] command: ",
+              command,
+              "result:",
+              result
+            );
+          } catch (error) {
+            console.error("OBS Error", error);
+          }
+        });
+
+        // only empty the queue if there are commands, otherwise we get stuck in a loop
+        if (commands.length > 0) {
+          change.doc.queue = [];
+          db.put(change.doc);
+        }
+      }
+    });
+
+    obs.on("CurrentProgramSceneChanged", () => {
+      updateOBSCurrentSceneAndItems(db, obs);
+    });
+  } catch (error) {
+    console.error("OBS Error", error);
+  }
+}
+
+async function updateOBSCurrentSceneAndItems(db, obs) {
+  const scenes = await obs.call("GetSceneList");
+
+  const itemsResult = await obs.call("GetSceneItemList", {
+    sceneName: scenes.currentProgramSceneName,
+  });
+
+  debug.log(itemsResult);
+
+  db.get("obs")
+    .then((doc) => {
+      doc.scenes = scenes;
+      doc.items = itemsResult;
+      db.put(doc);
+    })
+    .catch((error) => {
+      db.put({
+        _id: "obs",
+        scenes,
+        items: itemsResult,
+      });
+    });
+}
