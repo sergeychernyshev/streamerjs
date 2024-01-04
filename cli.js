@@ -29,7 +29,7 @@ const cliVersion = packageJson.version;
 
 // to override the default config, create a config.json file
 // in the root folder of your project
-const config = {
+const default_config = {
   port: 2525,
   dbpath: "db",
   debug: false,
@@ -39,11 +39,13 @@ const config = {
   },
 };
 
+let config = {};
+let configOverride = {};
+
 try {
   // Read the contents of config.json synchronously
   const data = fs.readFileSync("config.json", "utf8");
 
-  let configOverride = {};
   try {
     // Parse the JSON config data
     configOverride = JSON.parse(data);
@@ -51,17 +53,23 @@ try {
     console.error("Error parsing config.json:", jsonError);
     process.exit(1);
   }
-
-  // override OBS sub-object
-  config.obs = { ...config.obs, ...configOverride.obs };
 } catch (fileError) {
-  // just use default config when config.json is not found
+  // No config.json file found, using default config
 }
+
+// override the default config
+config = {
+  ...default_config,
+  ...configOverride,
+  obs: { ...default_config.obs, ...configOverride.obs },
+};
 
 // Debugging helper
 const debug = { log: console.log };
 if (config.debug) {
-  debug.log = console.log;
+  debug.log = (first, ...rest) => {
+    console.log("[DEBUG]", first, ...rest);
+  };
 } else {
   debug.log = () => {};
 }
@@ -269,8 +277,26 @@ function start() {
 }
 
 async function obs(db) {
+  // delete obs docs if it exists
+  await db
+    .get("obs")
+    .then((doc) => {
+      doc._deleted = true;
+      return db.put(doc);
+    })
+    .catch((error) => {});
+
+  // delete OBS commands queue if it exists
+  await db
+    .get("obs_commands")
+    .then((doc) => {
+      doc._deleted = true;
+      return db.put(doc);
+    })
+    .catch((error) => {});
+
   // Connect to OBS
-  debug.log(`\nConnecting to OBS on ${config.obs?.host}:${config.obs?.port}`);
+  debug.log(`Connecting to OBS on ${config.obs?.host}:${config.obs?.port}`);
 
   const obs = new OBSWebSocket();
 
@@ -295,90 +321,91 @@ async function obs(db) {
 
     debug.log("Connected to OBS and identified", OBSInfo);
 
+    OBSInit(db, obs);
+  } catch (error) {
+    console.error("Failed to connect to OBS: ", error);
+    console.log("OBS control functionality disabled.");
+  }
+}
+
+async function OBSInit(db, obs) {
+  // just report errors on OBS failures, don't stop the server
+  try {
     updateOBSCurrentSceneAndItems(db, obs);
-
-    // OBS commands queue
-    db.get("obs_commands")
-      .then((doc) => {
-        doc.queue = [];
-
-        // empty the queue on startup
-        db.put(doc);
-      })
-      .catch((error) => {
-        // no queue on startup
-        db.put({
-          _id: "obs_commands",
-          queue: [],
-        });
-      });
-
-    // monitor DB changes
-    db.changes({
-      since: "now",
-      live: true,
-      include_docs: true,
-    }).on("change", (change) => {
-      // debug.log("DB change", change);
-
-      if (change.id == "obs_commands") {
-        const commands = change.doc.queue;
-        // debug.log("Commands:", commands);
-
-        commands.forEach(async (command) => {
-          try {
-            debug.log("Calling OBS: ", command);
-            const result = await obs.call(
-              command.requestType,
-              command.requestData || {}
-            );
-            debug.log(
-              "[OBS Call Result] command: ",
-              command,
-              "result:",
-              result
-            );
-          } catch (error) {
-            console.error("OBS Error", error);
-          }
-        });
-
-        // only empty the queue if there are commands, otherwise we get stuck in a loop
-        if (commands.length > 0) {
-          change.doc.queue = [];
-          db.put(change.doc);
-        }
-      }
-    });
-
     obs.on("CurrentProgramSceneChanged", () => {
       updateOBSCurrentSceneAndItems(db, obs);
     });
+
+    setupOBSCommandQueue(db, obs);
   } catch (error) {
     console.error("OBS Error", error);
   }
 }
 
 async function updateOBSCurrentSceneAndItems(db, obs) {
+  debug.log("Updating OBS current scene and items");
+
   const scenes = await obs.call("GetSceneList");
 
   const itemsResult = await obs.call("GetSceneItemList", {
     sceneName: scenes.currentProgramSceneName,
   });
 
-  debug.log(itemsResult);
+  let doc;
 
-  db.get("obs")
-    .then((doc) => {
-      doc.scenes = scenes;
-      doc.items = itemsResult;
-      db.put(doc);
-    })
-    .catch((error) => {
-      db.put({
-        _id: "obs",
-        scenes,
-        items: itemsResult,
+  try {
+    doc = await db.get("obs");
+  } catch (error) {
+    doc = { _id: "obs" };
+  }
+
+  doc.scenes = scenes;
+  doc.items = itemsResult;
+
+  debug.log("Updating OBS doc", doc);
+
+  db.put(doc);
+}
+
+async function setupOBSCommandQueue(db, obs) {
+  debug.log("Setting up OBS command queue");
+
+  // OBS commands queue
+  db.put({
+    _id: "obs_commands",
+    queue: [],
+  });
+
+  // monitor DB changes
+  db.changes({
+    since: "now",
+    live: true,
+    include_docs: true,
+  }).on("change", (change) => {
+    // debug.log("DB change", change);
+
+    if (change.id == "obs_commands") {
+      const commands = change.doc.queue;
+      // debug.log("Commands:", commands);
+
+      commands.forEach(async (command) => {
+        try {
+          debug.log("Calling OBS: ", command);
+          const result = await obs.call(
+            command.requestType,
+            command.requestData || {}
+          );
+          debug.log("[OBS Call Result] command: ", command, "result:", result);
+        } catch (error) {
+          console.error("OBS Error", error);
+        }
       });
-    });
+
+      // only empty the queue if there are commands, otherwise we get stuck in a loop
+      if (commands.length > 0) {
+        change.doc.queue = [];
+        db.put(change.doc);
+      }
+    }
+  });
 }
