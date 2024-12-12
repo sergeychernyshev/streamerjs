@@ -27,6 +27,9 @@ const packageJson = JSON.parse(packageJsonContent);
 // Access the version
 const cliVersion = packageJson.version;
 
+// Scripts in user's project
+let scripts = {};
+
 // to override the default config, create a config.json file
 // in the root folder of your project
 const default_config = {
@@ -227,7 +230,7 @@ function start() {
     // PouchDB server
     app.use("/_db", pouchApp);
 
-    obs(db);
+    setupOBS(db);
   }
 
   // Get network interfaces
@@ -276,7 +279,15 @@ function start() {
   }
 }
 
-async function obs(db) {
+async function registerScripts(db, obs) {
+  if (fs.existsSync("control/scripts.mjs")) {
+    scripts = await import(process.cwd() + "/control/scripts.mjs");
+  }
+
+  setupScriptQueue(db, obs);
+}
+
+async function setupOBS(db) {
   // delete obs docs if it exists
   await db
     .get("obs")
@@ -320,6 +331,8 @@ async function obs(db) {
     );
 
     debug.log("Connected to OBS and identified", OBSInfo);
+
+    registerScripts(db, obs);
 
     OBSInit(db, obs);
   } catch (error) {
@@ -365,6 +378,56 @@ async function updateOBSCurrentSceneAndItems(db, obs) {
   debug.log("Updating OBS doc", doc);
 
   db.put(doc);
+}
+
+async function setupScriptQueue(db, obs) {
+  debug.log("Setting up script queue");
+
+  // delete scripts queue doc if it exists
+  await db
+    .get("scripts_queue")
+    .then((doc) => {
+      doc._deleted = true;
+      return db.put(doc);
+    })
+    .catch((error) => {});
+
+  // Scripts queue
+  await db.put({
+    _id: "scripts_queue",
+    queue: [],
+  });
+
+  // monitor DB changes
+  db.changes({
+    since: "now",
+    live: true,
+    include_docs: true,
+  }).on("change", (change) => {
+    if (change.id == "scripts_queue") {
+      const scriptCalls = change.doc.queue;
+
+      // only empty the queue if there are commands, otherwise we get stuck in a loop
+      if (change.doc.queue.length > 0) {
+        change.doc.queue = [];
+        db.put(change.doc);
+      }
+
+      scriptCalls.forEach(async (call) => {
+        try {
+          debug.log("Calling a script: ", call);
+          const result = await scripts[call.name](call.params || [], {
+            debug,
+            db,
+            obs,
+          });
+          debug.log("[Script Call Result] call: ", call, "result:", result);
+        } catch (error) {
+          console.error("Script Call Error", error);
+        }
+      });
+    }
+  });
 }
 
 async function setupOBSCommandQueue(db, obs) {
