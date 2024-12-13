@@ -3,6 +3,10 @@
   "version": "1.0.8",
   "description": "Video stream layout manager",
   "main": "./cli.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sergeychernyshev/streamerjs"
+  },
   "scripts": {
     "run": "node cli.js",
     "npm-publish": "npm publish --access=public",
