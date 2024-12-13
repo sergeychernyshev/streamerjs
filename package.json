@@ -1,6 +1,6 @@
 {
   "name": "@streamerjs/streamerjs",
-  "version": "1.0.7-livereload",
+  "version": "1.0.8",
   "description": "Video stream layout manager",
   "main": "./cli.js",
   "scripts": {
