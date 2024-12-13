@@ -3,6 +3,8 @@ import os from "os";
 import fs from "fs";
 import url from "url";
 import express from "express";
+import livereload from "livereload";
+import connectLivereload from "connect-livereload";
 import serveIndex from "serve-index";
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
@@ -133,15 +135,25 @@ function start() {
 
   const app = express();
 
+  // Setup livereload
+  const liveReloadServer = livereload.createServer();
+
+  // Use connect-livereload middleware
+  app.use(connectLivereload());
+
   // Scenes in user's project
   app.use(
     "/scenes/",
     express.static("scenes"),
     serveIndex("scenes", { icons: true })
   );
+  liveReloadServer.watch("./scenes/");
 
   // Assets in user's project
   app.use("/assets/", express.static("assets"));
+  liveReloadServer.watch("./assets/");
+
+  console.log("Livereload enabled for /scenes/ and /assets/ folders");
 
   // streamer resources
   const templates = url.fileURLToPath(import.meta.resolve("./templates/"));
@@ -171,6 +183,9 @@ function start() {
 
     // Control panel resources in user's project
     app.use("/control/", express.static("control"));
+    liveReloadServer.watch("./control/");
+
+    console.log("Livereload enabled for /control/ folder");
 
     /**
      * Server paths

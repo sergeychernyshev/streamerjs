@@ -1,6 +1,6 @@
 {
   "name": "@streamerjs/streamerjs",
-  "version": "1.0.7",
+  "version": "1.0.7-livereload",
   "description": "Video stream layout manager",
   "main": "./cli.js",
   "scripts": {
@@ -16,9 +16,11 @@
     "@streamerjs/streamerjs": "./cli.js"
   },
   "dependencies": {
+    "connect-livereload": "^0.6.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "express-pouchdb": "^4.2.0",
+    "livereload": "^0.9.3",
     "pouchdb": "^8.0.1",
     "serve-index": "^1.9.1",
     "yargs": "^17.7.2"
