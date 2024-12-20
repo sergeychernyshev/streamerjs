@@ -15,7 +15,7 @@ import PouchDB from "pouchdb";
 
 import ExpressPutchDBFactory from "express-pouchdb";
 
-let config;
+import OBSWebSocket, { EventSubscription } from "obs-websocket-js";
 
 // Read the content of package.json
 const packageJsonPath = url.fileURLToPath(
@@ -29,25 +29,32 @@ const cliVersion = packageJson.version;
 
 // to override the default config, create a config.json file
 // in the root folder of your project
-const default_config = {
+const config = {
   port: 2525,
   dbpath: "db",
+  obs: {
+    host: "localhost",
+    port: 4455,
+  },
 };
 
 try {
   // Read the contents of config.json synchronously
   const data = fs.readFileSync("config.json", "utf8");
 
+  let configOverride = {};
   try {
     // Parse the JSON config data
-    config = { ...default_config, ...JSON.parse(data) };
+    configOverride = JSON.parse(data);
   } catch (jsonError) {
     console.error("Error parsing config.json:", jsonError);
     process.exit(1);
   }
+
+  // override OBS sub-object
+  config.obs = { ...config.obs, ...configOverride.obs };
 } catch (fileError) {
-  // use default config when config.json is not found
-  config = default_config;
+  // just use default config when config.json is not found
 }
 
 // CLI arguments
@@ -249,3 +256,47 @@ function start() {
     });
   }
 }
+
+// Connect to OBS
+console.log(`\nConnecting to OBS on ${config.obs?.host}:${config.obs?.port}`);
+
+const obs = new OBSWebSocket();
+
+// Declare some events to listen for.
+obs.on("ConnectionOpened", () => {
+  console.log("OBS Connection Opened");
+});
+
+obs.on("Identified", () => {
+  console.log("OBS Identified, good to go!");
+
+  // Send some requests.
+  obs.call("GetSceneList").then((data) => {
+    console.log("Scenes:", data);
+  });
+});
+
+obs.on("SwitchScenes", (data) => {
+  console.log("SwitchScenes", data);
+});
+
+obs.on("CurrentSceneChanged", (data) => {
+  console.log("CurrentSceneChanged", data);
+});
+
+obs
+  .connect(
+    `ws://${config.obs?.host}:${config.obs?.port}`,
+    config.obs?.password,
+    {
+      eventSubscriptions: EventSubscription.All,
+    }
+  )
+  .then(
+    (info) => {
+      console.log("Connected to OBS and identified", info);
+    },
+    (error) => {
+      console.error("Error Connecting to OBS", error);
+    }
+  );
