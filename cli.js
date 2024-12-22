@@ -35,6 +35,9 @@ const default_config = {
   livereload: false,
 };
 
+// if project defines the scripts, this object will contain them
+let scripts = {};
+
 try {
   // Read the contents of config.json synchronously
   const data = fs.readFileSync("config.json", "utf8");
@@ -131,6 +134,16 @@ function createControlPanel(fileName) {
   );
 }
 
+async function registerServerScripts(db) {
+  if (fs.existsSync("server/scripts.mjs")) {
+    scripts = await import(process.cwd() + "/server/scripts.mjs");
+  }
+
+  if (scripts.init) {
+    scripts.init(db);
+  }
+}
+
 function start() {
   const insecurePort = config.port || process.env.PORT;
 
@@ -166,9 +179,7 @@ function start() {
   let enableControlPanel = false;
 
   // check if control folder exists to indicate that the user wants to create the control panel(s)
-  if (fs.existsSync("control")) {
-    enableControlPanel = true;
-
+  if (fs.existsSync("control") || fs.existsSync("server")) {
     // Check if the db folder exists, create it if it doesn't
     if (!fs.existsSync(config.dbpath)) {
       try {
@@ -183,15 +194,19 @@ function start() {
 
     const StreamerPouchDB = PouchDB.defaults({ prefix: config.dbpath + "/" });
 
-    new StreamerPouchDB("streamer");
+    const db = new StreamerPouchDB("streamer");
 
-    // Control panel resources in user's project
-    app.use("/control/", express.static("control"));
+    if (fs.existsSync("control")) {
+      enableControlPanel = true;
 
-    if (config.livereload) {
-      liveReloadServer.watch("./control/");
+      // Control panel resources in user's project
+      app.use("/control/", express.static("control"));
 
-      console.log("Livereload enabled for /control/ folder");
+      if (config.livereload) {
+        liveReloadServer.watch("./control/");
+
+        console.log("Livereload enabled for /control/ folder");
+      }
     }
 
     /**
@@ -209,6 +224,10 @@ function start() {
     });
     // PouchDB server
     app.use("/_db", pouchApp);
+
+    if (fs.existsSync("server")) {
+      registerServerScripts(db);
+    }
   }
 
   // Get network interfaces
