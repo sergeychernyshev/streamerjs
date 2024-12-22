@@ -135,6 +135,14 @@ function start() {
   const insecurePort = config.port || process.env.PORT;
 
   const app = express();
+  // Scenes in user's project
+  app.use(
+    "/scenes/",
+    express.static("scenes"),
+    serveIndex("scenes", { icons: true })
+  );
+
+  app.use("/assets/", express.static("assets"));
 
   if (config.livereload) {
     // Setup livereload
@@ -143,16 +151,9 @@ function start() {
     // Use connect-livereload middleware
     app.use(connectLivereload());
 
-    // Scenes in user's project
-    app.use(
-      "/scenes/",
-      express.static("scenes"),
-      serveIndex("scenes", { icons: true })
-    );
     liveReloadServer.watch("./scenes/");
 
     // Assets in user's project
-    app.use("/assets/", express.static("assets"));
     liveReloadServer.watch("./assets/");
 
     console.log("Livereload enabled for /scenes/ and /assets/ folders");
