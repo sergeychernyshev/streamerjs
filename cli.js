@@ -32,6 +32,7 @@ const cliVersion = packageJson.version;
 const default_config = {
   port: 2525,
   dbpath: "db",
+  livereload: false,
 };
 
 try {
@@ -135,25 +136,27 @@ function start() {
 
   const app = express();
 
-  // Setup livereload
-  const liveReloadServer = livereload.createServer();
+  if (config.livereload) {
+    // Setup livereload
+    const liveReloadServer = livereload.createServer();
 
-  // Use connect-livereload middleware
-  app.use(connectLivereload());
+    // Use connect-livereload middleware
+    app.use(connectLivereload());
 
-  // Scenes in user's project
-  app.use(
-    "/scenes/",
-    express.static("scenes"),
-    serveIndex("scenes", { icons: true })
-  );
-  liveReloadServer.watch("./scenes/");
+    // Scenes in user's project
+    app.use(
+      "/scenes/",
+      express.static("scenes"),
+      serveIndex("scenes", { icons: true })
+    );
+    liveReloadServer.watch("./scenes/");
 
-  // Assets in user's project
-  app.use("/assets/", express.static("assets"));
-  liveReloadServer.watch("./assets/");
+    // Assets in user's project
+    app.use("/assets/", express.static("assets"));
+    liveReloadServer.watch("./assets/");
 
-  console.log("Livereload enabled for /scenes/ and /assets/ folders");
+    console.log("Livereload enabled for /scenes/ and /assets/ folders");
+  }
 
   // streamer resources
   const templates = url.fileURLToPath(import.meta.resolve("./templates/"));
@@ -183,9 +186,12 @@ function start() {
 
     // Control panel resources in user's project
     app.use("/control/", express.static("control"));
-    liveReloadServer.watch("./control/");
 
-    console.log("Livereload enabled for /control/ folder");
+    if (config.livereload) {
+      liveReloadServer.watch("./control/");
+
+      console.log("Livereload enabled for /control/ folder");
+    }
 
     /**
      * Server paths
