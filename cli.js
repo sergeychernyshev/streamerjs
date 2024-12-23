@@ -157,9 +157,11 @@ function start() {
 
   app.use("/assets/", express.static("assets"));
 
+  let liveReloadServer;
+
   if (config.livereload) {
     // Setup livereload
-    const liveReloadServer = livereload.createServer();
+    liveReloadServer = livereload.createServer();
 
     // Use connect-livereload middleware
     app.use(connectLivereload());
