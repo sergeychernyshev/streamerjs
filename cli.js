@@ -140,7 +140,7 @@ async function registerServerScripts(db) {
   }
 
   if (scripts.init) {
-    scripts.init(db);
+    scripts.init({ db });
   }
 }
 
@@ -148,14 +148,6 @@ function start() {
   const insecurePort = config.port || process.env.PORT;
 
   const app = express();
-  // Scenes in user's project
-  app.use(
-    "/scenes/",
-    express.static("scenes"),
-    serveIndex("scenes", { icons: true })
-  );
-
-  app.use("/assets/", express.static("assets"));
 
   let liveReloadServer;
 
@@ -166,6 +158,19 @@ function start() {
     // Use connect-livereload middleware
     app.use(connectLivereload());
 
+    console.log("Livereloadis server started");
+  }
+
+  // Scenes in user's project
+  app.use(
+    "/scenes/",
+    express.static("scenes"),
+    serveIndex("scenes", { icons: true })
+  );
+
+  app.use("/assets/", express.static("assets"));
+
+  if (liveReloadServer) {
     liveReloadServer.watch("./scenes/");
 
     // Assets in user's project
@@ -173,7 +178,6 @@ function start() {
 
     console.log("Livereload enabled for /scenes/ and /assets/ folders");
   }
-
   // streamer resources
   const templates = url.fileURLToPath(import.meta.resolve("./templates/"));
   app.set("view engine", "ejs").set("views", templates);
