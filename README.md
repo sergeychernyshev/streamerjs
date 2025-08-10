@@ -46,6 +46,32 @@ npx @streamerjs/streamerjs create-control-panel index.html
 
 The page will include the control panel HTML, CSS and JavaScript files and will use PouchDB to synchronize with the [scenes](#scenes).
 
+## Server Scripts
+
+You can now create server-side scripts in the `/server/` folder. These scripts can be used to customize the behavior of the Streamer JS application when it starts and has access to `db` object to initialize the application or to react to changes.
+
+To enable scripts, create a `/server/scripts.mjs` file with `init()` function that takes an object with `db` property.
+
+Here's an example:
+
+```javascript
+// sample `server/scripts.mjs` logging current state
+// of a document in the database on startup
+export function init({ db }) {
+  db.get("my_scene")
+    .then(function (doc) {
+      console.log("Current my_scene document:", doc);
+    })
+    .catch(function (err) {
+      console.error("Error fetching my_scene document:", err);
+    });
+}
+```
+
+Scripts currently can't be called directly from the client, unless you somehow pass messages through a DB queue document making scripts listen to database changes, picking up and processing those messages.
+
+We hope to implement this kind of RPC functionality soon so you don't have to jump through hoops to accomplish that.
+
 ## Help
 
 To get help, run the following command:
