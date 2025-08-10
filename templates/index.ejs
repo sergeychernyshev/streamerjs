@@ -3,20 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StreamerJS</title>
+    <title>StreamerJS v<%= version %></title>
+    <style>
+      body {
+        background-color: #006076; /* Dark Purple */
+        color: #ebccb0;
+        font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+          "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+        margin: 2em;
+      }
+      .card {
+        background-color: #ebccb0; /* Very light grey */
+        border: 1px solid #bd75a1;
+        border-radius: 0.25rem;
+        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+        transition: all 0.2s ease-in-out;
+      }
+      a {
+        text-decoration: dashed underline;
+      }
+
+      body a {
+        color: #bd75a1;
+      }
+
+      .card-link,
+      .card-link:hover {
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .card-link:hover .card {
+        border-color: #7a5677;
+        box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+      }
+      .card h2 {
+        margin-top: 0;
+      }
+
+      h1 {
+        font-size: 4em;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        margin-bottom: 0;
+      }
+    </style>
   </head>
   <body>
     <h1>StreamerJS</h1>
+    <p>
+      v<%= version %> -
+      <a target="_blank" href="https://github.com/sergeychernyshev/streamerjs"
+        >GitHub</a
+      >
+      -
+      <a
+        target="_blank"
+        href="https://www.npmjs.com/package/@streamerjs/streamerjs"
+        >npm</a
+      >
+    </p>
 
-    <section>
-      <h2>Scenes</h2>
-      Go to <a href="/scenes/">/scenes/</a> to open your scene pages and add
-      them to your OBS scene in a browser component.
-    </section>
-    <section>
-      <% if (control) { %>
-      <h2>Control</h2>
-      Go to <a href="/control/">/control/</a> to open your control page. <% } %>
-    </section>
+    <a href="/scenes/" class="card-link">
+      <section class="card">
+        <h2>Scenes</h2>
+        Go to /scenes/ to open your scene pages and add them to your OBS scene
+        in a browser component.
+      </section>
+    </a>
+    <% if (control) { %>
+    <a href="/control/" class="card-link">
+      <section class="card">
+        <h2>Control</h2>
+        Go to /control/ to open your control page.
+      </section>
+    </a>
+    <% } %>
   </body>
 </html>
