@@ -158,7 +158,7 @@ function start() {
     // Use connect-livereload middleware
     app.use(connectLivereload());
 
-    console.log("Livereloadis server started");
+    console.log("Livereload server started");
   }
 
   // Scenes in user's project
