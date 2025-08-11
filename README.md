@@ -50,21 +50,25 @@ The page will include the control panel HTML, CSS and JavaScript files and will 
 
 You can now create server-side scripts in the `/server/` folder. These scripts can be used to customize the behavior of the Streamer JS application when it starts and has access to `db` object to initialize the application or to react to changes.
 
-To enable scripts, create a `/server/scripts.mjs` file with `init()` function that takes an object with `db` property.
+To enable scripts, create a `/server/` folder and add any number of `.mjs` files. Each file should export a default class. The constructor of the class will be called on application start and will receive an object with a `db` property.
 
 Here's an example:
 
 ```javascript
-// sample `server/scripts.mjs` logging current state
+// sample `server/my-script.mjs` logging current state
 // of a document in the database on startup
-export function init({ db }) {
-  db.get("my_scene")
-    .then(function (doc) {
-      console.log("Current my_scene document:", doc);
-    })
-    .catch(function (err) {
-      console.error("Error fetching my_scene document:", err);
-    });
+export default class MyScript {
+  constructor({ db }) {
+    db.get("my_scene")
+      .then(function (doc) {
+        console.log("Current my_scene document:", doc);
+      })
+      .catch(function (err) {
+        if (err.name !== "not_found") {
+          console.error("Error fetching my_scene document:", err);
+        }
+      });
+  }
 }
 ```
 
