@@ -3,6 +3,7 @@ import os from "os";
 import fs from "fs";
 import url from "url";
 import express from "express";
+import path from "path";
 import livereload from "livereload";
 import connectLivereload from "connect-livereload";
 import serveIndex from "serve-index";
@@ -135,16 +136,105 @@ function createControlPanel(fileName) {
 }
 
 async function registerServerScripts(db) {
-  if (fs.existsSync("server/scripts.mjs")) {
-    scripts = await import(process.cwd() + "/server/scripts.mjs");
+  const serverDir = "server";
+  if (!fs.existsSync(serverDir)) {
+    return;
   }
 
-  if (scripts.init) {
-    scripts.init({ db });
+  const files = fs.readdirSync(serverDir);
+  const scriptsToLoad = files.filter((file) => path.extname(file) === ".mjs");
+
+  if (scriptsToLoad.length === 0) {
+    return;
+  }
+
+  console.log("\n🛠️ Registering Server Scripts...");
+
+  for (const file of scriptsToLoad) {
+    const filePath = path.join(process.cwd(), serverDir, file);
+    try {
+      const serverModule = await import(url.pathToFileURL(filePath));
+      if (serverModule.default && typeof serverModule.default === "function") {
+        console.log(`  - ✅ Loaded: ${file}`);
+        new serverModule.default({ db });
+      } else {
+        console.log(`  - ⚠️  Skipped (no default export): ${file}`);
+      }
+    } catch (error) {
+      console.error(`  - ❌ Error loading ${file}:`, error);
+    }
   }
 }
 
-function start() {
+function createAsciiTable(data) {
+  if (!data || data.length === 0) {
+    return "";
+  }
+
+  // A simplified way to calculate visual width of a string containing emojis.
+  // It strips variation selectors that can affect `.length`.
+  // A full solution would require a library like `string-width`.
+  const stringWidth = (str) => {
+    return str.replace(/[\uFE00-\uFE0F]/g, "").length;
+  };
+
+  const headers = Object.keys(data[0]);
+  const columnWidths = headers.map((header) => stringWidth(header));
+
+  data.forEach((row) => {
+    headers.forEach((header, i) => {
+      const value = String(row[header]);
+      const width = stringWidth(value);
+      if (width > columnWidths[i]) {
+        columnWidths[i] = width;
+      }
+    });
+  });
+
+  const padding = 1;
+
+  const formatRow = (rowData) => {
+    let rowStr = "│";
+    rowData.forEach((cell, i) => {
+      const cellStr = String(cell);
+      const len = stringWidth(cellStr);
+      const totalPadding = columnWidths[i] - len + padding * 2;
+      const paddingLeft = " ".repeat(padding);
+      const paddingRight = " ".repeat(totalPadding - padding);
+      rowStr += `${paddingLeft}${cellStr}${paddingRight}│`;
+    });
+    return rowStr;
+  };
+
+  const createSeparator = (left, middle, right, line) => {
+    let sepStr = left;
+    columnWidths.forEach((width, i) => {
+      sepStr += line.repeat(width + padding * 2);
+      if (i < columnWidths.length - 1) {
+        sepStr += middle;
+      }
+    });
+    sepStr += right;
+    return sepStr;
+  };
+
+  const topBorder = createSeparator("┌", "┬", "┐", "─");
+  const headerSeparator = createSeparator("├", "┼", "┤", "─");
+  const bottomBorder = createSeparator("└", "┴", "┘", "─");
+
+  let table = [topBorder, formatRow(headers), headerSeparator];
+
+  data.forEach((row) => {
+    const rowCells = headers.map((header) => row[header]);
+    table.push(formatRow(rowCells));
+  });
+
+  table.push(bottomBorder);
+
+  return table.join("\n");
+}
+
+async function start() {
   const insecurePort = config.port || process.env.PORT;
 
   const app = express();
@@ -157,8 +247,6 @@ function start() {
 
     // Use connect-livereload middleware
     app.use(connectLivereload());
-
-    console.log("Livereload server started");
   }
 
   // Scenes in user's project
@@ -175,14 +263,13 @@ function start() {
 
     // Assets in user's project
     liveReloadServer.watch("./assets/");
-
-    console.log("Livereload enabled for /scenes/ and /assets/ folders");
   }
   // streamer resources
   const templates = url.fileURLToPath(import.meta.resolve("./templates/"));
   app.set("view engine", "ejs").set("views", templates);
 
   let enableControlPanel = false;
+  let db;
 
   // check if control folder exists to indicate that the user wants to create the control panel(s)
   if (fs.existsSync("control") || fs.existsSync("server")) {
@@ -190,7 +277,6 @@ function start() {
     if (!fs.existsSync(config.dbpath)) {
       try {
         fs.mkdirSync(config.dbpath, { recursive: true });
-        console.log(`PouchDB database folder created at: ${config.dbpath}`);
       } catch (error) {
         console.error(
           `Error creating PouchDB database folder: ${error.message}`
@@ -200,7 +286,7 @@ function start() {
 
     const StreamerPouchDB = PouchDB.defaults({ prefix: config.dbpath + "/" });
 
-    const db = new StreamerPouchDB("streamer");
+    db = new StreamerPouchDB("streamer");
 
     if (fs.existsSync("control")) {
       enableControlPanel = true;
@@ -210,8 +296,6 @@ function start() {
 
       if (config.livereload) {
         liveReloadServer.watch("./control/");
-
-        console.log("Livereload enabled for /control/ folder");
       }
     }
 
@@ -230,10 +314,6 @@ function start() {
     });
     // PouchDB server
     app.use("/_db", pouchApp);
-
-    if (fs.existsSync("server")) {
-      registerServerScripts(db);
-    }
   }
 
   // Get network interfaces
@@ -267,17 +347,66 @@ function start() {
   );
 
   // HTTP server
-  app.listen(insecurePort);
+  app.listen(insecurePort, async () => {
+    const versionLabel = `v${cliVersion}`;
+    const versionLabelSpaced = versionLabel.padEnd(54 - versionLabel.length);
 
-  console.log(`StreamerJS (v${cliVersion}) server listening on:`);
-  ips.forEach((ip) => {
-    console.log(`http://${ip}:${insecurePort}`);
-  });
+    const asciiArt = `
+  _________ __  ${versionLabelSpaced}____. _________
+ /   _____//  |________   ____ _____    _____   ___________    |    |/   _____/
+ \_____  \\\\    __\\_  __ \\_/ __ \\\\__  \\  /     \\_/ __ \\_  __ \\   |    |\\_____  \\
+ /        \\|  |  |  | \\/\\  ___/ / __ \\|  Y Y  \\  ___/|  | \\/\\__|    |/        \\
+/_______  /|__|  |__|    \\___  >____  /__|_|  /\\___  >__|  \\________/_______  /
+        \\/                   \\/     \\/      \\/     \\/                       \\/
+`;
+    console.log(asciiArt);
 
-  if (enableControlPanel) {
-    console.log("\nControl your stream by opening:");
+    console.log("─".repeat(80));
+    console.log("🚀 StreamerJS Server is running!");
+    console.log("─".repeat(80));
+
+    const features = [];
+
+    if (db) {
+      features.push("PouchDB Database\t📦");
+    }
+    if (enableControlPanel) {
+      features.push("Control Panel\t🎛️");
+    }
+    if (fs.existsSync("server")) {
+      features.push("Server Scripts\t🛠️");
+    }
+    if (config.livereload) {
+      features.push("Live Reload\t🔄");
+    }
+
+    if (features.length > 0) {
+      console.log("\n✨ Features:");
+      features.forEach((feature) => {
+        console.log(`  - ✅ ${feature}`);
+      });
+    }
+
+    if (fs.existsSync("server")) {
+      await registerServerScripts(db);
+    }
+
+    const accessUrls = [];
     ips.forEach((ip) => {
-      console.log(`http://${ip}:${insecurePort}/control/`);
+      const urls = {
+        Location: `http://${ip}:${insecurePort}`,
+        Scenes: `http://${ip}:${insecurePort}/scenes/`,
+      };
+      if (enableControlPanel) {
+        urls["Control Panel"] = `http://${ip}:${insecurePort}/control/`;
+      }
+      accessUrls.push(urls);
     });
-  }
+
+    if (accessUrls.length > 0) {
+      console.log("\n🔗 Access URLs:");
+      console.log(createAsciiTable(accessUrls));
+    }
+    console.log("\n" + "─".repeat(80));
+  });
 }
