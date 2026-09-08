@@ -28,3 +28,6 @@ const db = (() => {
 
   return localDB;
 })();
+
+// also available as a property so ES modules and other scripts can find it
+window.db = db;

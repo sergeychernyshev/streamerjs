@@ -9,6 +9,8 @@
   },
   "scripts": {
     "run": "node cli.js",
+    "build": "npm run build:graph-editor",
+    "build:graph-editor": "esbuild src/graph-editor/main.jsx --bundle --minify --format=iife --target=es2020 --jsx=automatic --define:process.env.NODE_ENV=\\\"production\\\" --outdir=resources/graph-editor --entry-names=editor",
     "npm-publish": "npm publish --access=public",
     "dev": "npm link",
     "prod": "npm -g unlink @streamerjs/streamerjs",
@@ -27,11 +29,16 @@
     "express": "^4.18.2",
     "express-pouchdb": "^4.2.0",
     "livereload": "^0.9.3",
+    "obs-websocket-js": "^5.0.8",
     "pouchdb": "^8.0.1",
     "serve-index": "^1.9.1",
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "prettier": "3.9.8"
+    "@xyflow/react": "^12.11.6",
+    "esbuild": "^0.28.2",
+    "prettier": "3.9.8",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
   }
 }
