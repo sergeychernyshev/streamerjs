@@ -4,9 +4,19 @@ Video stream layout manager for OBS Studio and other streaming application.
 
 We use web technologies to manage the layout of the video stream and control it remotely using a web browser.
 
+## Getting started
+
+Create a new project with a sample scene and control panel:
+
+```bash
+npm create streamerjs my-stream
+cd my-stream
+npm start
+```
+
 ## Running the application
 
-To run Streamer JS in your project, create a `/scenes/` sub-folder and put your scenes HTML files there.
+To run Streamer JS in an existing project, create a `/scenes/` sub-folder and put your scenes HTML files there.
 
 Then just run the following command:
 
@@ -33,7 +43,7 @@ You can also create multiple files for different layers and group in folders per
 Run the following command to create a basic scene:
 
 ```bash
-npx @streamerjs/streamerjs create-scene my-scene.html
+npm create streamerjs scene my-scene.html
 ```
 
 Streamer JS will create a basic scene in `/scenes/` folder that has some basic HTML elements, CSS stylesheet and a JavaScript file that uses PouchDB synchronization with the [control panel](#control-panel).
@@ -49,7 +59,7 @@ To enable control panel, create a folder named `/control/` in the root of the pr
 To create a basic control panel file in `/control/` folder, run the following command:
 
 ```bash
-npx @streamerjs/streamerjs create-control-panel index.html
+npm create streamerjs control-panel index.html
 ```
 
 The page will include the control panel HTML, CSS and JavaScript files and will use PouchDB to synchronize with the [scenes](#scenes).
@@ -59,6 +69,12 @@ The page will include the control panel HTML, CSS and JavaScript files and will 
 You can now create server-side scripts in the `/server/` folder. These scripts can be used to customize the behavior of the Streamer JS application when it starts and has access to `db` object to initialize the application or to react to changes.
 
 To enable scripts, create a `/server/` folder and add any number of `.mjs` files. Each file should export a default class. The constructor of the class will be called on application start and will receive an object with a `db` property.
+
+To create a sample server script, run the following command:
+
+```bash
+npm create streamerjs server-script my-script.mjs
+```
 
 Here's an example:
 
@@ -94,7 +110,7 @@ npx @streamerjs/streamerjs --help
 
 ## Additional Configuration
 
-To configure the application, you need to create a file named `config.json` in the root of the project. This file can contain the following information:
+To configure the application, you need to create a file named `config.json` in the root of the project (`npm create streamerjs config` creates one with default settings). This file can contain the following information:
 
 ```json
 {
