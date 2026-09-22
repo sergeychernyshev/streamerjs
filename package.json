@@ -11,7 +11,9 @@
     "run": "node cli.js",
     "npm-publish": "npm publish --access=public",
     "dev": "npm link",
-    "prod": "npm -g unlink @streamerjs/streamerjs"
+    "prod": "npm -g unlink @streamerjs/streamerjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "author": "Sergey Chernyshev",
   "license": "BSD-3-Clause",
@@ -28,5 +30,8 @@
     "pouchdb": "^8.0.1",
     "serve-index": "^1.9.1",
     "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "prettier": "3.9.8"
   }
 }
