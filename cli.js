@@ -20,7 +20,7 @@ let config;
 
 // Read the content of package.json
 const packageJsonPath = url.fileURLToPath(
-  import.meta.resolve("./package.json")
+  import.meta.resolve("./package.json"),
 );
 const packageJsonContent = fs.readFileSync(packageJsonPath, "utf8");
 const packageJson = JSON.parse(packageJsonContent);
@@ -63,7 +63,7 @@ yargs(hideBin(process.argv))
     ["$0", "start"],
     "start StreamerJS application",
     (yargs) => {},
-    start
+    start,
   )
   .command(
     "create-scene [file-name]",
@@ -77,7 +77,7 @@ yargs(hideBin(process.argv))
     (argv) => {
       createScene(argv.fileName);
       process.exit(0);
-    }
+    },
   )
   .command(
     "create-control-panel [file-name]",
@@ -91,7 +91,7 @@ yargs(hideBin(process.argv))
     (argv) => {
       createControlPanel(argv.fileName);
       process.exit(0);
-    }
+    },
   )
   .help()
   .wrap(null)
@@ -111,7 +111,7 @@ function createScene(fileName) {
 
   fs.copyFileSync(
     url.fileURLToPath(import.meta.resolve("./boilerplate/scene/index.html")),
-    `scenes/${fileName}`
+    `scenes/${fileName}`,
   );
 }
 
@@ -124,14 +124,14 @@ function createControlPanel(fileName) {
   console.log(`Creating a new control panel file: control/${fileName}`);
   if (fs.existsSync(`control/${fileName}`)) {
     console.error(
-      `Error: Control panel ${fileName} already exists in /control/ folder`
+      `Error: Control panel ${fileName} already exists in /control/ folder`,
     );
     process.exit(1);
   }
 
   fs.copyFileSync(
     url.fileURLToPath(import.meta.resolve("./boilerplate/control/index.html")),
-    `control/${fileName}`
+    `control/${fileName}`,
   );
 }
 
@@ -253,7 +253,7 @@ async function start() {
   app.use(
     "/scenes/",
     express.static("scenes"),
-    serveIndex("scenes", { icons: true })
+    serveIndex("scenes", { icons: true }),
   );
 
   app.use("/assets/", express.static("assets"));
@@ -279,7 +279,7 @@ async function start() {
         fs.mkdirSync(config.dbpath, { recursive: true });
       } catch (error) {
         console.error(
-          `Error creating PouchDB database folder: ${error.message}`
+          `Error creating PouchDB database folder: ${error.message}`,
         );
       }
     }
@@ -303,7 +303,7 @@ async function start() {
      * Server paths
      */
     const pouchDBLibPath = url.fileURLToPath(
-      import.meta.resolve("Pouchdb/dist/")
+      import.meta.resolve("Pouchdb/dist/"),
     );
     // PouchDB client library
     app.use("/_resources/pouchdb/", express.static(pouchDBLibPath));
@@ -343,7 +343,7 @@ async function start() {
   // Assets in user's project
   app.use(
     "/_resources/",
-    express.static(url.fileURLToPath(import.meta.resolve("./resources/")))
+    express.static(url.fileURLToPath(import.meta.resolve("./resources/"))),
   );
 
   // HTTP server
