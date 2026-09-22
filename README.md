@@ -14,6 +14,14 @@ Then just run the following command:
 npx @streamerjs/streamerjs
 ```
 
+By default, Streamer JS only listens on `127.0.0.1`, so it is only accessible from the same computer. To open scenes or the control panel from other devices (e.g. a phone or another computer running OBS Studio), set [`ips`](#additional-configuration) in `config.json`.
+
+To force listening on `127.0.0.1` regardless of the configuration, use the `--local` flag:
+
+```bash
+npx @streamerjs/streamerjs --local
+```
+
 ## Scenes
 
 Scenes are HTML files that are used to create the layout of the video stream. You can create multiple scenes and add them to OBS Studio as browser sources.
@@ -91,9 +99,17 @@ To configure the application, you need to create a file named `config.json` in t
 ```json
 {
   "port": 2525,
-  "dbpath": "db"
+  "dbpath": "db",
+  "ips": "127.0.0.1"
 }
 ```
 
 - `port`: The port where the web server will run
 - `dbpath`: The path where the database will be stored
+- `ips`: IP address or an array of IP addresses to listen on, defaults to `"127.0.0.1"`. Use `"*"` (or `"all"`) to listen on all network interfaces, which makes Streamer JS accessible to anyone on your network, so only use it on networks you trust.
+
+  ```json
+  {
+    "ips": ["127.0.0.1", "192.168.1.10"]
+  }
+  ```

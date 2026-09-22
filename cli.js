@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import os from "os";
+import net from "net";
 import fs from "fs";
 import url from "url";
 import express from "express";
@@ -34,7 +35,11 @@ const default_config = {
   port: 2525,
   dbpath: "db",
   livereload: false,
+  // IP address(es) to listen on, use "*" or "all" to listen on all interfaces
+  ips: "127.0.0.1",
 };
+
+const LOCAL_IP = "127.0.0.1";
 
 // if project defines the scripts, this object will contain them
 let scripts = {};
@@ -62,7 +67,13 @@ yargs(hideBin(process.argv))
   .command(
     ["$0", "start"],
     "start StreamerJS application",
-    (yargs) => {},
+    {
+      local: {
+        type: "boolean",
+        default: false,
+        describe: `only listen on ${LOCAL_IP}, ignoring "ips" in config.json`,
+      },
+    },
     start,
   )
   .command(
@@ -133,6 +144,66 @@ function createControlPanel(fileName) {
     url.fileURLToPath(import.meta.resolve("./boilerplate/control/index.html")),
     `control/${fileName}`,
   );
+}
+
+// Returns a list of IPs to listen on or null to listen on all interfaces
+function resolveListenIps(local) {
+  if (local) {
+    return [LOCAL_IP];
+  }
+
+  const ips = Array.isArray(config.ips) ? config.ips : [config.ips];
+
+  if (
+    ips.length === 0 ||
+    ips.some((ip) => typeof ip !== "string" || ip.trim() === "")
+  ) {
+    console.error(
+      'Error: "ips" in config.json must be an IP address, an array of IP addresses, or "*" to listen on all interfaces',
+    );
+    process.exit(1);
+  }
+
+  if (ips.includes("*") || ips.includes("all")) {
+    return null;
+  }
+
+  return [...new Set(ips.map((ip) => ip.trim()))];
+}
+
+function isLoopback(ip) {
+  return ip === "localhost" || ip === "::1" || ip.startsWith("127.");
+}
+
+// Returns IPv4 addresses of all network interfaces
+function getAllInterfaceIps() {
+  const networkInterfaces = os.networkInterfaces();
+
+  const ips = [];
+
+  // Iterate over each network interface
+  Object.keys(networkInterfaces).forEach((interfaceName) => {
+    const interfaces = networkInterfaces[interfaceName];
+
+    // Iterate over each interface
+    interfaces.forEach((interfaceInfo) => {
+      // Check if the address is an IPv4
+      if (interfaceInfo.family === "IPv4") {
+        ips.push(interfaceInfo.address);
+      }
+    });
+  });
+
+  return ips;
+}
+
+// Starts an HTTP server for the app on the given IP (or all interfaces if undefined)
+function listen(app, port, ip) {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, ip);
+    server.once("listening", () => resolve(server));
+    server.once("error", reject);
+  });
 }
 
 async function registerServerScripts(db) {
@@ -234,8 +305,11 @@ function createAsciiTable(data) {
   return table.join("\n");
 }
 
-async function start() {
+async function start(argv) {
   const insecurePort = config.port || process.env.PORT;
+
+  // null means listening on all interfaces
+  const listenIps = resolveListenIps(argv.local);
 
   const app = express();
 
@@ -243,7 +317,19 @@ async function start() {
 
   if (config.livereload) {
     // Setup livereload
-    liveReloadServer = livereload.createServer();
+    liveReloadServer = livereload.createServer({ noListen: true });
+
+    // livereload always listens on all interfaces, so we bind its HTTP server
+    // to the same IP as the app, a single server can only bind to one IP though,
+    // so it listens on all interfaces when multiple IPs are configured
+    const liveReloadIp =
+      listenIps && listenIps.length === 1 ? listenIps[0] : undefined;
+    const liveReloadHttpServer = liveReloadServer.config.server;
+    const liveReloadListen =
+      liveReloadHttpServer.listen.bind(liveReloadHttpServer);
+    liveReloadHttpServer.listen = (port) =>
+      liveReloadListen(port, liveReloadIp);
+    liveReloadServer.listen();
 
     // Use connect-livereload middleware
     app.use(connectLivereload());
@@ -316,24 +402,6 @@ async function start() {
     app.use("/_db", pouchApp);
   }
 
-  // Get network interfaces
-  const networkInterfaces = os.networkInterfaces();
-
-  const ips = [];
-
-  // Iterate over each network interface
-  Object.keys(networkInterfaces).forEach((interfaceName) => {
-    const interfaces = networkInterfaces[interfaceName];
-
-    // Iterate over each interface
-    interfaces.forEach((interfaceInfo) => {
-      // Check if the address is an IPv4
-      if (interfaceInfo.family === "IPv4") {
-        ips.push(interfaceInfo.address);
-      }
-    });
-  });
-
   // Server index linking to other parts of the server
   app.get("/", (req, res) => {
     app.engine("ejs", ejs.renderFile);
@@ -346,12 +414,30 @@ async function start() {
     express.static(url.fileURLToPath(import.meta.resolve("./resources/"))),
   );
 
-  // HTTP server
-  app.listen(insecurePort, async () => {
-    const versionLabel = `v${cliVersion}`;
-    const versionLabelSpaced = versionLabel.padEnd(54 - versionLabel.length);
+  // HTTP server(s), one per IP
+  try {
+    await Promise.all(
+      (listenIps || [undefined]).map((ip) => listen(app, insecurePort, ip)),
+    );
+  } catch (error) {
+    if (error.code === "EADDRNOTAVAIL") {
+      console.error(
+        `Error: IP address ${error.address} is not available on this computer, check "ips" in config.json`,
+      );
+    } else if (error.code === "EADDRINUSE") {
+      console.error(
+        `Error: port ${error.port} is already in use on ${error.address}`,
+      );
+    } else {
+      console.error("Error starting the server:", error);
+    }
+    process.exit(1);
+  }
 
-    const asciiArt = `
+  const versionLabel = `v${cliVersion}`;
+  const versionLabelSpaced = versionLabel.padEnd(54 - versionLabel.length);
+
+  const asciiArt = `
   _________ __  ${versionLabelSpaced}____. _________
  /   _____//  |________   ____ _____    _____   ___________    |    |/   _____/
  \_____  \\\\    __\\_  __ \\_/ __ \\\\__  \\  /     \\_/ __ \\_  __ \\   |    |\\_____  \\
@@ -359,54 +445,64 @@ async function start() {
 /_______  /|__|  |__|    \\___  >____  /__|_|  /\\___  >__|  \\________/_______  /
         \\/                   \\/     \\/      \\/     \\/                       \\/
 `;
-    console.log(asciiArt);
+  console.log(asciiArt);
 
-    console.log("─".repeat(80));
-    console.log("🚀 StreamerJS Server is running!");
-    console.log("─".repeat(80));
+  console.log("─".repeat(80));
+  console.log("🚀 StreamerJS Server is running!");
+  console.log("─".repeat(80));
 
-    const features = [];
+  const features = [];
 
-    if (db) {
-      features.push("PouchDB Database\t📦");
-    }
-    if (enableControlPanel) {
-      features.push("Control Panel\t🎛️");
-    }
-    if (fs.existsSync("server")) {
-      features.push("Server Scripts\t🛠️");
-    }
-    if (config.livereload) {
-      features.push("Live Reload\t🔄");
-    }
+  if (db) {
+    features.push("PouchDB Database\t📦");
+  }
+  if (enableControlPanel) {
+    features.push("Control Panel\t🎛️");
+  }
+  if (fs.existsSync("server")) {
+    features.push("Server Scripts\t🛠️");
+  }
+  if (config.livereload) {
+    features.push("Live Reload\t🔄");
+  }
 
-    if (features.length > 0) {
-      console.log("\n✨ Features:");
-      features.forEach((feature) => {
-        console.log(`  - ✅ ${feature}`);
-      });
-    }
-
-    if (fs.existsSync("server")) {
-      await registerServerScripts(db);
-    }
-
-    const accessUrls = [];
-    ips.forEach((ip) => {
-      const urls = {
-        Location: `http://${ip}:${insecurePort}`,
-        Scenes: `http://${ip}:${insecurePort}/scenes/`,
-      };
-      if (enableControlPanel) {
-        urls["Control Panel"] = `http://${ip}:${insecurePort}/control/`;
-      }
-      accessUrls.push(urls);
+  if (features.length > 0) {
+    console.log("\n✨ Features:");
+    features.forEach((feature) => {
+      console.log(`  - ✅ ${feature}`);
     });
+  }
 
-    if (accessUrls.length > 0) {
-      console.log("\n🔗 Access URLs:");
-      console.log(createAsciiTable(accessUrls));
+  if (fs.existsSync("server")) {
+    await registerServerScripts(db);
+  }
+
+  const accessUrls = [];
+  (listenIps || getAllInterfaceIps()).forEach((ip) => {
+    // IPv6 addresses must be wrapped in brackets in URLs
+    const host = net.isIPv6(ip) ? `[${ip}]` : ip;
+    const urls = {
+      Location: `http://${host}:${insecurePort}`,
+      Scenes: `http://${host}:${insecurePort}/scenes/`,
+    };
+    if (enableControlPanel) {
+      urls["Control Panel"] = `http://${host}:${insecurePort}/control/`;
     }
-    console.log("\n" + "─".repeat(80));
+    accessUrls.push(urls);
   });
+
+  if (accessUrls.length > 0) {
+    console.log("\n🔗 Access URLs:");
+    console.log(createAsciiTable(accessUrls));
+  }
+
+  if (listenIps && listenIps.every(isLoopback)) {
+    console.log(
+      "\n🔒 Only accessible from this computer." +
+        (argv.local
+          ? ""
+          : '\n   To allow access from other devices, set "ips" in config.json, e.g. "ips": "*"'),
+    );
+  }
+  console.log("\n" + "─".repeat(80));
 }
