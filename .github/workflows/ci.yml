@@ -38,8 +38,11 @@ jobs:
           set -euo pipefail
 
           project=$(mktemp -d)
-          mkdir -p "$project/scenes" "$project/control"
           cd "$project"
+
+          # the boilerplate commands create the folders the server serves
+          node "$GITHUB_WORKSPACE/cli.js" create-scene index.html
+          node "$GITHUB_WORKSPACE/cli.js" create-control-panel index.html
 
           node "$GITHUB_WORKSPACE/cli.js" > server.log 2>&1 &
           server=$!
