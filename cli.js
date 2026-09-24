@@ -17,6 +17,10 @@ import PouchDB from "pouchdb";
 
 import ExpressPutchDBFactory from "express-pouchdb";
 
+import OBSManager, { UnconfiguredOBS } from "./lib/obs.mjs";
+import GraphRuntime from "./lib/graph-runtime.mjs";
+import createGraphRouter from "./lib/graph-router.mjs";
+
 let config;
 
 // Read the content of package.json
@@ -37,6 +41,11 @@ const default_config = {
   livereload: false,
   // IP address(es) to listen on, use "*" or "all" to listen on all interfaces
   ips: "127.0.0.1",
+  // "auto" enables the node graph whenever the database is enabled,
+  // true turns it on unconditionally, false turns it off
+  graph: "auto",
+  // { url, password } of an OBS WebSocket server, see README
+  obs: null,
 };
 
 const LOCAL_IP = "127.0.0.1";
@@ -352,13 +361,25 @@ async function start(argv) {
   }
   // streamer resources
   const templates = url.fileURLToPath(import.meta.resolve("./templates/"));
-  app.set("view engine", "ejs").set("views", templates);
+  app
+    .engine("ejs", ejs.renderFile)
+    .set("view engine", "ejs")
+    .set("views", templates);
 
   let enableControlPanel = false;
+  let enableGraph = false;
   let db;
+  let obs;
+  let graphRuntime;
+
+  // the node graph is stored in the database, so it needs one to run
+  const databaseRequested =
+    fs.existsSync("control") ||
+    fs.existsSync("server") ||
+    config.graph === true;
 
   // check if control folder exists to indicate that the user wants to create the control panel(s)
-  if (fs.existsSync("control") || fs.existsSync("server")) {
+  if (databaseRequested) {
     // Check if the db folder exists, create it if it doesn't
     if (!fs.existsSync(config.dbpath)) {
       try {
@@ -389,7 +410,7 @@ async function start(argv) {
      * Server paths
      */
     const pouchDBLibPath = url.fileURLToPath(
-      import.meta.resolve("Pouchdb/dist/"),
+      import.meta.resolve("pouchdb/dist/"),
     );
     // PouchDB client library
     app.use("/_resources/pouchdb/", express.static(pouchDBLibPath));
@@ -400,12 +421,30 @@ async function start(argv) {
     });
     // PouchDB server
     app.use("/_db", pouchApp);
+
+    if (config.graph !== false) {
+      enableGraph = true;
+
+      obs = config.obs ? new OBSManager(config.obs) : new UnconfiguredOBS();
+      graphRuntime = new GraphRuntime({ db, obs });
+
+      // REST API for the editor and for control panel triggers
+      app.use("/_graph", createGraphRouter({ runtime: graphRuntime, obs }));
+
+      // node graph editor, matched with and without the trailing slash
+      app.get("/graph/", (req, res) => {
+        res.render("graph", { version: cliVersion });
+      });
+    }
   }
 
   // Server index linking to other parts of the server
   app.get("/", (req, res) => {
-    app.engine("ejs", ejs.renderFile);
-    res.render("index", { control: enableControlPanel, version: cliVersion });
+    res.render("index", {
+      control: enableControlPanel,
+      graph: enableGraph,
+      version: cliVersion,
+    });
   });
 
   // Assets in user's project
@@ -459,6 +498,9 @@ async function start(argv) {
   if (enableControlPanel) {
     features.push("Control Panel\t🎛️");
   }
+  if (enableGraph) {
+    features.push("Node Graph\t🕸️");
+  }
   if (fs.existsSync("server")) {
     features.push("Server Scripts\t🛠️");
   }
@@ -471,6 +513,19 @@ async function start(argv) {
     features.forEach((feature) => {
       console.log(`  - ✅ ${feature}`);
     });
+  }
+
+  if (graphRuntime) {
+    console.log("\n🕸️  Starting Node Graph...");
+    await graphRuntime.start();
+
+    if (obs instanceof OBSManager) {
+      await obs.connect();
+    } else {
+      console.log(
+        '  - ℹ️  OBS is not configured, add an "obs" section to config.json',
+      );
+    }
   }
 
   if (fs.existsSync("server")) {
@@ -487,6 +542,9 @@ async function start(argv) {
     };
     if (enableControlPanel) {
       urls["Control Panel"] = `http://${host}:${insecurePort}/control/`;
+    }
+    if (enableGraph) {
+      urls["Node Graph"] = `http://${host}:${insecurePort}/graph/`;
     }
     accessUrls.push(urls);
   });

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node Graph - StreamerJS v<%= version %></title>
+    <link rel="stylesheet" href="/_resources/graph-editor/editor.css" />
+  </head>
+  <body>
+    <div id="graph-editor">
+      <noscript>
+        <p style="margin: 2rem">
+          The node graph editor needs JavaScript. Your control panel triggers keep
+          working without it.
+        </p>
+      </noscript>
+    </div>
+
+    <script src="/_resources/pouchdb/pouchdb.min.js"></script>
+    <script src="/_resources/db.js"></script>
+    <script>
+      // hand the shared, synchronized database to the editor bundle
+      window.db = db;
+    </script>
+    <script src="/_resources/graph-editor/editor.js"></script>
+  </body>
+</html>

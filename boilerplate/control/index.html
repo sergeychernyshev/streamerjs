@@ -10,12 +10,28 @@
     <h2>Counter: <span id="counter"></span></h2>
     <button id="increment">Increment</button>
 
+    <h2>Node Graph Triggers</h2>
+    <!--
+      Renders a button for every button trigger in the node graph at /graph/.
+      Wire your own markup up instead with:
+
+      <streamer-trigger trigger-id="go-live">
+        <form method="post" action="/_graph/trigger/go-live">
+          <button>Go live</button>
+        </form>
+      </streamer-trigger>
+
+      The form keeps working when JavaScript is unavailable.
+    -->
+    <streamer-trigger-panel></streamer-trigger-panel>
+
     <h2>Manage Database</h2>
     <button id="delete">Delete Scene Data</button>
     <button id="init">Initialize Scene Data</button>
 
     <script src="/_resources/pouchdb/pouchdb.min.js"></script>
     <script src="/_resources/db.js"></script>
+    <script src="/_resources/graph.js"></script>
     <script>
       db.changes({
         since: "now",
