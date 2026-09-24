@@ -1,0 +1,19 @@
+# What NOT to publish. Everything else ships, so a new file is included unless
+# it is listed here, which is safer than an allowlist that quietly leaves new
+# files out of the package.
+#
+# npm ignores .gitignore once this file exists, so the entries from there are
+# repeated below.
+
+# development tooling, of no use to anyone installing the package
+.changeset
+.github
+.prettierrc
+.prettierignore
+RELEASING.md
+
+# generated while running StreamerJS in this folder, see .gitignore
+db
+assets
+scenes
+node_modules
