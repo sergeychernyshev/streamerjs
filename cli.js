@@ -389,7 +389,7 @@ async function start(argv) {
      * Server paths
      */
     const pouchDBLibPath = url.fileURLToPath(
-      import.meta.resolve("Pouchdb/dist/"),
+      import.meta.resolve("pouchdb/dist/"),
     );
     // PouchDB client library
     app.use("/_resources/pouchdb/", express.static(pouchDBLibPath));

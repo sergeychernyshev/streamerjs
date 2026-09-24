@@ -46,12 +46,20 @@ jobs:
           trap 'kill $server 2>/dev/null || true' EXIT
 
           # the server only listens on 127.0.0.1 by default
+          started=""
           for _ in $(seq 1 30); do
             if curl -sf -o /dev/null http://127.0.0.1:2525/; then
+              started="yes"
               break
             fi
             sleep 1
           done
+
+          if [ -z "$started" ]; then
+            echo "The server did not start"
+            cat server.log
+            exit 1
+          fi
 
           for page in / /scenes/ /control/; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:2525$page")
