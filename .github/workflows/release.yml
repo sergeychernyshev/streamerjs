@@ -1,0 +1,64 @@
+# Publishes to npm with trusted publishing (OIDC), so no npm token is stored.
+#
+# npm ties trusted publishing to this exact filename, see RELEASING.md before
+# renaming or moving this file.
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Pre-release checks
+    # never release from a fork
+    if: ${{ github.repository == 'sergeychernyshev/streamerjs' }}
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Release
+    needs: check
+    # never release from a fork
+    if: ${{ github.repository == 'sergeychernyshev/streamerjs' }}
+    runs-on: ubuntu-latest
+    permissions:
+      # mint the OIDC token npm checks against its trusted publisher config
+      id-token: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # registry-url is left out on purpose, it writes an .npmrc expecting a
+      # token, which trusted publishing does not use
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      # trusted publishing needs npm 11.5.1 or later
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      # opens the "Version packages" pull request, or publishes to npm when
+      # that pull request has been merged
+      - name: Create release pull request or publish to npm
+        uses: changesets/action@v2.1.2
+        with:
+          version-script: npm run version-packages
+          publish-script: npm run release
+          pr-title: "Version packages"
+          commit-message: "Version packages"
+          github-token: ${{ secrets.GITHUB_TOKEN }}

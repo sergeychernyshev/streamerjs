@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  # so the release workflow can run the same checks before publishing
+  workflow_call:
+
+jobs:
+  check:
+    name: Checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Check that the CLI parses
+        run: node --check cli.js
+
+      - name: Start the server and request its pages
+        run: |
+          set -euo pipefail
+
+          project=$(mktemp -d)
+          mkdir -p "$project/scenes" "$project/control"
+          cd "$project"
+
+          node "$GITHUB_WORKSPACE/cli.js" > server.log 2>&1 &
+          server=$!
+          trap 'kill $server 2>/dev/null || true' EXIT
+
+          # the server only listens on 127.0.0.1 by default
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:2525/; then
+              break
+            fi
+            sleep 1
+          done
+
+          for page in / /scenes/ /control/; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:2525$page")
+            echo "$page -> $code"
+            if [ "$code" != "200" ]; then
+              echo "Expected 200 from $page"
+              cat server.log
+              exit 1
+            fi
+          done
+
+          cat server.log
