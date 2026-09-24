@@ -1,5 +1,15 @@
 # @streamerjs/streamerjs
 
+## 1.3.0
+
+### Minor Changes
+
+- [#26](https://github.com/sergeychernyshev/streamerjs/pull/26) [`1bb4e77`](https://github.com/sergeychernyshev/streamerjs/commit/1bb4e77f350f2ca53f5c4c5525f0691ab8118120) - Remove the `create-scene` and `create-control-panel` commands, which the `create-streamerjs` package now provides as `npm create streamerjs scene` and `npm create streamerjs control-panel`
+
+### Patch Changes
+
+- [#28](https://github.com/sergeychernyshev/streamerjs/pull/28) [`7d96f3e`](https://github.com/sergeychernyshev/streamerjs/commit/7d96f3ec6006abbb9f2609efe53de07d04f2019d) - Show only the root URL on startup, as a plain list instead of a table, the page it opens already links to the scenes and the control panel
+
 ## 1.2.1
 
 ### Patch Changes
