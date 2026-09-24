@@ -477,18 +477,12 @@ async function start(argv) {
     await registerServerScripts(db);
   }
 
-  const accessUrls = [];
-  (listenIps || getAllInterfaceIps()).forEach((ip) => {
+  // only the root URL, the page it opens links to the scenes and the control panel
+  const accessUrls = (listenIps || getAllInterfaceIps()).map((ip) => {
     // IPv6 addresses must be wrapped in brackets in URLs
     const host = net.isIPv6(ip) ? `[${ip}]` : ip;
-    const urls = {
-      Location: `http://${host}:${insecurePort}`,
-      Scenes: `http://${host}:${insecurePort}/scenes/`,
-    };
-    if (enableControlPanel) {
-      urls["Control Panel"] = `http://${host}:${insecurePort}/control/`;
-    }
-    accessUrls.push(urls);
+
+    return { Location: `http://${host}:${insecurePort}` };
   });
 
   if (accessUrls.length > 0) {
