@@ -56,6 +56,31 @@ administer the package. Until it is, the publish step fails to authenticate.
 That is the whole setup. npm now accepts a publish from this repository's
 `release.yml`, and only from there.
 
+## Repository settings the release depends on
+
+**Settings → Actions → General → Workflow permissions** has _Allow GitHub
+Actions to create and approve pull requests_ turned on. Without it the release
+run fails at the last step, after pushing `changeset-release/main`, with
+`GitHub Actions is not permitted to create or approve pull requests`.
+
+That setting also lets any workflow here approve a pull request, so `main` is
+protected to make such an approval worthless:
+
+- Changes to `main` go through a pull request approved by a code owner.
+  `.github/CODEOWNERS` names the maintainers, and a bot can never be one, so a
+  workflow's approval does not satisfy the rule.
+- Direct pushes, force pushes and branch deletion are blocked.
+- Release tags cannot be deleted or moved once pushed.
+- Repository administrators can bypass the review, which is what makes a single
+  maintainer workflow possible at all, since GitHub does not let anyone approve
+  their own pull request.
+
+Do not add **required status checks** to `main`. The Version packages pull
+request is created with the automatic `GITHUB_TOKEN`, which never triggers
+workflows, so a required check would never run and that pull request could never
+be merged. Give the action a fine grained token or a GitHub App token first if
+you want checks there.
+
 ### After the first successful release
 
 - Revoke any npm automation tokens that were used to publish by hand, they are
