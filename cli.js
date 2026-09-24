@@ -76,75 +76,12 @@ yargs(hideBin(process.argv))
     },
     start,
   )
-  .command(
-    "create-scene [file-name]",
-    "create a new scene in /scenes/ folder",
-    {
-      fileName: {
-        alias: "f",
-        default: "index.html",
-      },
-    },
-    (argv) => {
-      createScene(argv.fileName);
-      process.exit(0);
-    },
-  )
-  .command(
-    "create-control-panel [file-name]",
-    "create a new control panel in /control/ folder",
-    {
-      fileName: {
-        alias: "f",
-        default: "index.html",
-      },
-    },
-    (argv) => {
-      createControlPanel(argv.fileName);
-      process.exit(0);
-    },
-  )
+  // without this an unknown command falls through to the default one and
+  // silently starts the server
+  .strict()
   .help()
   .wrap(null)
   .version(cliVersion).argv;
-
-function createScene(fileName) {
-  if (!fs.existsSync("scenes")) {
-    console.log("Creating /scenes/ folder");
-    fs.mkdirSync("scenes");
-  }
-
-  console.log(`Creating a new scene file: scenes/${fileName}`);
-  if (fs.existsSync(`scenes/${fileName}`)) {
-    console.error(`Error: Scene ${fileName} already exists in /scenes/ folder`);
-    process.exit(1);
-  }
-
-  fs.copyFileSync(
-    url.fileURLToPath(import.meta.resolve("./boilerplate/scene/index.html")),
-    `scenes/${fileName}`,
-  );
-}
-
-function createControlPanel(fileName) {
-  if (!fs.existsSync("control")) {
-    console.log("Creating /control/ folder");
-    fs.mkdirSync("control");
-  }
-
-  console.log(`Creating a new control panel file: control/${fileName}`);
-  if (fs.existsSync(`control/${fileName}`)) {
-    console.error(
-      `Error: Control panel ${fileName} already exists in /control/ folder`,
-    );
-    process.exit(1);
-  }
-
-  fs.copyFileSync(
-    url.fileURLToPath(import.meta.resolve("./boilerplate/control/index.html")),
-    `control/${fileName}`,
-  );
-}
 
 // Returns a list of IPs to listen on or null to listen on all interfaces
 function resolveListenIps(local) {
