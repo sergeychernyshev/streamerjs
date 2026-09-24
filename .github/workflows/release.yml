@@ -62,3 +62,6 @@ jobs:
           pr-title: "Version packages"
           commit-message: "Version packages"
           github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          # the changelog generator looks up pull requests and authors
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
