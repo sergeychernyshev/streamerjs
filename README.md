@@ -129,3 +129,7 @@ To configure the application, you need to create a file named `config.json` in t
     "ips": ["127.0.0.1", "192.168.1.10"]
   }
   ```
+
+## Releasing
+
+Releases are automated with changesets and published to npm from GitHub Actions. If your change affects users, add a changeset with `npm run changeset` and commit it along with your change. See [RELEASING.md](RELEASING.md) for the full process.
