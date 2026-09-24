@@ -40,9 +40,11 @@ jobs:
           project=$(mktemp -d)
           cd "$project"
 
-          # the boilerplate commands create the folders the server serves
-          node "$GITHUB_WORKSPACE/cli.js" create-scene index.html
-          node "$GITHUB_WORKSPACE/cli.js" create-control-panel index.html
+          # a scene and a control panel, as create-streamerjs would write them.
+          # both folders need an index for the server to serve them
+          mkdir scenes control
+          echo "<!doctype html><title>scene</title>" > scenes/index.html
+          echo "<!doctype html><title>control</title>" > control/index.html
 
           node "$GITHUB_WORKSPACE/cli.js" > server.log 2>&1 &
           server=$!
