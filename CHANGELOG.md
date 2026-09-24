@@ -1,5 +1,11 @@
 # @streamerjs/streamerjs
 
+## 1.3.1
+
+### Patch Changes
+
+- [#30](https://github.com/sergeychernyshev/streamerjs/pull/30) [`85d5f9a`](https://github.com/sergeychernyshev/streamerjs/commit/85d5f9a3b4bd20c27eaa5c5d1eb4b8bbeb002454) - Stop publishing development tooling to npm, the package no longer carries the changesets config, GitHub workflows, Prettier config and release documentation
+
 ## 1.3.0
 
 ### Minor Changes
