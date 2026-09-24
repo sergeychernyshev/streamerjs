@@ -174,74 +174,6 @@ async function registerServerScripts(db) {
   }
 }
 
-function createAsciiTable(data) {
-  if (!data || data.length === 0) {
-    return "";
-  }
-
-  // A simplified way to calculate visual width of a string containing emojis.
-  // It strips variation selectors that can affect `.length`.
-  // A full solution would require a library like `string-width`.
-  const stringWidth = (str) => {
-    return str.replace(/[\uFE00-\uFE0F]/g, "").length;
-  };
-
-  const headers = Object.keys(data[0]);
-  const columnWidths = headers.map((header) => stringWidth(header));
-
-  data.forEach((row) => {
-    headers.forEach((header, i) => {
-      const value = String(row[header]);
-      const width = stringWidth(value);
-      if (width > columnWidths[i]) {
-        columnWidths[i] = width;
-      }
-    });
-  });
-
-  const padding = 1;
-
-  const formatRow = (rowData) => {
-    let rowStr = "│";
-    rowData.forEach((cell, i) => {
-      const cellStr = String(cell);
-      const len = stringWidth(cellStr);
-      const totalPadding = columnWidths[i] - len + padding * 2;
-      const paddingLeft = " ".repeat(padding);
-      const paddingRight = " ".repeat(totalPadding - padding);
-      rowStr += `${paddingLeft}${cellStr}${paddingRight}│`;
-    });
-    return rowStr;
-  };
-
-  const createSeparator = (left, middle, right, line) => {
-    let sepStr = left;
-    columnWidths.forEach((width, i) => {
-      sepStr += line.repeat(width + padding * 2);
-      if (i < columnWidths.length - 1) {
-        sepStr += middle;
-      }
-    });
-    sepStr += right;
-    return sepStr;
-  };
-
-  const topBorder = createSeparator("┌", "┬", "┐", "─");
-  const headerSeparator = createSeparator("├", "┼", "┤", "─");
-  const bottomBorder = createSeparator("└", "┴", "┘", "─");
-
-  let table = [topBorder, formatRow(headers), headerSeparator];
-
-  data.forEach((row) => {
-    const rowCells = headers.map((header) => row[header]);
-    table.push(formatRow(rowCells));
-  });
-
-  table.push(bottomBorder);
-
-  return table.join("\n");
-}
-
 async function start(argv) {
   const insecurePort = config.port || process.env.PORT;
 
@@ -414,23 +346,19 @@ async function start(argv) {
     await registerServerScripts(db);
   }
 
-  const accessUrls = [];
-  (listenIps || getAllInterfaceIps()).forEach((ip) => {
+  // only the root URL, the page it opens links to the scenes and the control panel
+  const accessUrls = (listenIps || getAllInterfaceIps()).map((ip) => {
     // IPv6 addresses must be wrapped in brackets in URLs
     const host = net.isIPv6(ip) ? `[${ip}]` : ip;
-    const urls = {
-      Location: `http://${host}:${insecurePort}`,
-      Scenes: `http://${host}:${insecurePort}/scenes/`,
-    };
-    if (enableControlPanel) {
-      urls["Control Panel"] = `http://${host}:${insecurePort}/control/`;
-    }
-    accessUrls.push(urls);
+
+    return `http://${host}:${insecurePort}`;
   });
 
   if (accessUrls.length > 0) {
     console.log("\n🔗 Access URLs:");
-    console.log(createAsciiTable(accessUrls));
+    accessUrls.forEach((accessUrl) => {
+      console.log(`  - ${accessUrl}`);
+    });
   }
 
   if (listenIps && listenIps.every(isLoopback)) {
